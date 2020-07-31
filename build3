@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+exclude_files="exclude_files.txt"
+
+if [ "$1" = "d" ]
+then
+	exclude_files="exclude_files_debug.txt"
+fi
+
+formatted_date=$(date '+%m%d%y%H%M%S')
+file_path=$(pwd)
+file_name=$(basename $file_path)
+tar_name=$file_name\_$formatted_date
+
+rm -rf /Users/iforrest/Documents/Dev/ph_tarballs/$tar_name.tgz
+cd ..
+compile_output=$(python3 -m compileall -l -f $file_name)
+
+echo "Compile Output: $compile_output"
+error_occurred=$(echo "$compile_output" | grep Error)
+if [ "$error_occurred" != "" ]
+then
+	echo "ERROR OCCURRED - $err_occurred"
+	exit 3
+fi
+
+tar -cvzf /Users/iforrest/Documents/Dev/ph_tarballs/$tar_name.tgz -X ~/Documents/Dev/$exclude_files $file_name
+
+flake8 $file_name
+jsonfile=$(ls $file_path | grep json)
+echo "jsonfile found = $jsonfile"
+
+organize_output=$(python /Users/iforrest/Documents/Dev/organize_output.py $file_path/$jsonfile) 
+error_occurred=$(echo "$organize_output" | grep Error)
+if [ "$error_occurred" != "" ]
+then
+	echo "ERROR OCCURRED (organize_output) - $error_occurred"
+fi
+
+update_cr=$(python /Users/iforrest/Documents/Dev/update_cr.py -d $file_path)
+error_occurred=$(echo "$update_cr" | grep Error)
+if [ "$error_occurred" != "" ]
+then
+	echo "ERROR OCCURRED (update_cr) - $error_occurred"
+fi
+
+shasum -a 512 /Users/iforrest/Documents/Dev/ph_tarballs/$tar_name.tgz | awk '{print "sha512 - "$1}'
+shasum -a 256 /Users/iforrest/Documents/Dev/ph_tarballs/$tar_name.tgz | awk '{print "sha256 - "$1}'
+shasum -a 1 /Users/iforrest/Documents/Dev/ph_tarballs/$tar_name.tgz | awk '{print "sha1 - "$1}'
+md5 /Users/iforrest/Documents/Dev/ph_tarballs/$tar_name.tgz | awk '{print "md5 - "$4}'
+
